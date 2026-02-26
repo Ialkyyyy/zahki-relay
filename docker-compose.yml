@@ -1,0 +1,11 @@
+services:
+  relay:
+    build: .
+    ports:
+      - "3004:3004"
+    volumes:
+      - relay-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  relay-data:
