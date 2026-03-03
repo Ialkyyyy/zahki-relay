@@ -1,11 +1,15 @@
 {
   "name": "zahki-relay",
   "version": "1.0.0",
-  "description": "Webhook relay and localhost tunnel tool. Expose local servers to the internet with live request inspection.",
+  "description": "Expose localhost to the internet. Inspect, replay, and debug HTTP requests in real time.",
   "type": "module",
   "bin": {
     "zahki-relay": "dist/cli/index.js"
   },
+  "files": [
+    "dist/",
+    "client/dist/"
+  ],
   "scripts": {
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "vite client",
@@ -18,6 +22,24 @@
     "preview": "npm run build && npm start",
     "cli": "tsx cli/index.ts"
   },
+  "keywords": [
+    "tunnel",
+    "localhost",
+    "webhook",
+    "relay",
+    "ngrok",
+    "proxy",
+    "http",
+    "inspect",
+    "debug",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ialkyyyy/zahki-relay.git"
+  },
+  "homepage": "https://github.com/Ialkyyyy/zahki-relay",
+  "author": "Isaac Alkhabaz",
   "dependencies": {
     "sql.js": "^1.11.0",
     "cors": "^2.8.5",
