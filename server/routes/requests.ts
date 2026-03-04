@@ -70,6 +70,22 @@ requestsRouter.get('/detail/:id', (req, res) => {
   });
 });
 
+// Clear all requests for a tunnel
+requestsRouter.delete('/:tunnelId/clear', (req, res) => {
+  const db = getDb();
+  const { tunnelId } = req.params;
+
+  const tunnel = db.exec(`SELECT id FROM tunnels WHERE id = ?`, [tunnelId]);
+  if (tunnel.length === 0 || tunnel[0].values.length === 0) {
+    res.status(404).json({ error: 'Tunnel not found' });
+    return;
+  }
+
+  db.run(`DELETE FROM requests WHERE tunnel_id = ?`, [tunnelId]);
+  saveDb();
+  res.json({ ok: true });
+});
+
 // Replay a captured request
 requestsRouter.post('/:id/replay', async (req, res) => {
   const db = getDb();

@@ -56,6 +56,11 @@ export async function listRequests(tunnelId: string): Promise<CapturedRequest[]>
   return res.json();
 }
 
+export async function clearRequests(tunnelId: string): Promise<void> {
+  const res = await fetch(`${BASE}/requests/${tunnelId}/clear`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to clear requests');
+}
+
 export async function getRequestDetail(id: string): Promise<CapturedRequest> {
   const res = await fetch(`${BASE}/requests/detail/${id}`);
   if (!res.ok) throw new Error('Failed to get request');
