@@ -15,6 +15,13 @@ interface TunnelRequest {
   body: string;
 }
 
+const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`;
+const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
+const yellow = (s: string) => `\x1b[33m${s}\x1b[0m`;
+const red = (s: string) => `\x1b[31m${s}\x1b[0m`;
+const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
+const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
+
 export class TunnelClient {
   private ws: WebSocket | null = null;
   private apiKey: string | null = null;
@@ -22,13 +29,14 @@ export class TunnelClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldReconnect = true;
   private readonly options: TunnelClientOptions;
+  private requestCount = 0;
+  private connectedAt: number | null = null;
 
   constructor(options: TunnelClientOptions) {
     this.options = options;
   }
 
   async connect() {
-    // First, create a tunnel via the API to get an API key
     if (!this.apiKey) {
       try {
         const createUrl = `${this.options.serverUrl}/api/tunnels`;
@@ -45,7 +53,7 @@ export class TunnelClient {
 
         if (!response.ok) {
           const err = await response.json();
-          console.error(`  Error creating tunnel: ${err.error || response.statusText}`);
+          console.error(`  ${red('Error:')} ${err.error || response.statusText}`);
           process.exit(1);
         }
 
@@ -53,12 +61,11 @@ export class TunnelClient {
         this.apiKey = data.apiKey;
         this.subdomain = data.subdomain;
       } catch (err) {
-        console.error(`  Error connecting to server: ${err instanceof Error ? err.message : err}`);
+        console.error(`  ${red('Error:')} ${err instanceof Error ? err.message : err}`);
         process.exit(1);
       }
     }
 
-    // Connect via WebSocket
     const wsUrl = this.options.serverUrl.replace(/^http/, 'ws') + '/ws';
     this.ws = new WebSocket(wsUrl);
 
@@ -71,13 +78,16 @@ export class TunnelClient {
         const msg = JSON.parse(data.toString());
 
         if (msg.type === 'auth_ok') {
-          console.log(`  Connected! Tunnel active.`);
-          console.log(`  Public URL: ${this.options.serverUrl}/t/${msg.subdomain}`);
-          console.log(`  Forwarding to: http://localhost:${this.options.port}\n`);
-          console.log(`  ${'Method'.padEnd(8)} ${'Path'.padEnd(40)} ${'Status'.padEnd(8)} Time`);
-          console.log(`  ${'─'.repeat(8)} ${'─'.repeat(40)} ${'─'.repeat(8)} ${'─'.repeat(8)}`);
+          this.connectedAt = Date.now();
+          const publicUrl = `${this.options.serverUrl}/t/${msg.subdomain}`;
+          console.log(`  ${green('●')} Tunnel active\n`);
+          console.log(`  ${dim('Public URL:')}  ${cyan(publicUrl)}`);
+          console.log(`  ${dim('Forwarding:')}  http://localhost:${this.options.port}`);
+          console.log(`  ${dim('Dashboard:')}   ${this.options.serverUrl}\n`);
+          console.log(`  ${dim('Method'.padEnd(8))} ${dim('Path'.padEnd(40))} ${dim('Status'.padEnd(8))} ${dim('Time')}`);
+          console.log(`  ${dim('─'.repeat(70))}`);
         } else if (msg.type === 'auth_error') {
-          console.error(`  Authentication failed: ${msg.error}`);
+          console.error(`  ${red('●')} Authentication failed: ${msg.error}`);
           this.shouldReconnect = false;
         } else if (msg.type === 'request') {
           await this.handleRequest(msg as TunnelRequest);
@@ -89,22 +99,24 @@ export class TunnelClient {
 
     this.ws.on('close', (code) => {
       if (this.shouldReconnect && code !== 4003) {
-        console.log('\n  Connection lost. Reconnecting in 3s...');
+        const uptime = this.connectedAt ? this.formatUptime(Date.now() - this.connectedAt) : '';
+        console.log(`\n  ${yellow('●')} Connection lost${uptime ? ` (uptime: ${uptime})` : ''}. Reconnecting in 3s...`);
+        this.connectedAt = null;
         this.reconnectTimer = setTimeout(() => this.connect(), 3000);
       }
     });
 
     this.ws.on('error', (err) => {
       if ((err as NodeJS.ErrnoException).code === 'ECONNREFUSED') {
-        console.error(`  Cannot connect to server at ${this.options.serverUrl}`);
+        console.error(`  ${red('●')} Cannot connect to server at ${this.options.serverUrl}`);
       }
-      // The 'close' event will fire after this and handle reconnection
     });
   }
 
   private async handleRequest(req: TunnelRequest) {
     const startTime = Date.now();
     const localUrl = `http://localhost:${this.options.port}${req.path}`;
+    this.requestCount++;
 
     try {
       const fetchOptions: RequestInit = {
@@ -112,12 +124,10 @@ export class TunnelClient {
         headers: req.headers,
       };
 
-      // Only attach body for methods that support it
       if (req.body && !['GET', 'HEAD'].includes(req.method.toUpperCase())) {
         fetchOptions.body = req.body;
       }
 
-      // Remove headers that would cause issues with local fetch
       const headers = { ...req.headers };
       delete headers['host'];
       delete headers['connection'];
@@ -127,13 +137,11 @@ export class TunnelClient {
       const responseBody = await response.text();
       const elapsed = Date.now() - startTime;
 
-      // Collect response headers
       const responseHeaders: Record<string, string> = {};
       response.headers.forEach((value, key) => {
         responseHeaders[key] = value;
       });
 
-      // Send response back to relay server
       this.ws?.send(JSON.stringify({
         type: 'response',
         id: req.id,
@@ -142,17 +150,13 @@ export class TunnelClient {
         body: responseBody,
       }));
 
-      // Log to terminal
-      const statusColor = response.status < 300 ? '\x1b[32m' : response.status < 400 ? '\x1b[33m' : '\x1b[31m';
-      const reset = '\x1b[0m';
+      const colorStatus = response.status < 300 ? green : response.status < 400 ? yellow : red;
       const methodStr = req.method.padEnd(8);
       const pathStr = req.path.length > 40 ? req.path.substring(0, 37) + '...' : req.path.padEnd(40);
-      const statusStr = `${statusColor}${response.status}${reset}`.padEnd(8 + statusColor.length + reset.length);
-      console.log(`  ${methodStr} ${pathStr} ${statusStr} ${elapsed}ms`);
+      console.log(`  ${methodStr} ${pathStr} ${colorStatus(String(response.status).padEnd(8))} ${dim(elapsed + 'ms')}`);
     } catch (err) {
       const elapsed = Date.now() - startTime;
 
-      // Send error response back
       this.ws?.send(JSON.stringify({
         type: 'response',
         id: req.id,
@@ -162,8 +166,17 @@ export class TunnelClient {
       }));
 
       const pathStr = req.path.length > 40 ? req.path.substring(0, 37) + '...' : req.path.padEnd(40);
-      console.log(`  ${req.method.padEnd(8)} ${pathStr} \x1b[31m502\x1b[0m      ${elapsed}ms  (local server unreachable)`);
+      console.log(`  ${req.method.padEnd(8)} ${pathStr} ${red('502'.padEnd(8))} ${dim(elapsed + 'ms')}  ${dim('(local server unreachable)')}`);
     }
+  }
+
+  private formatUptime(ms: number): string {
+    const seconds = Math.floor(ms / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ${minutes % 60}m`;
   }
 
   disconnect() {
@@ -174,6 +187,9 @@ export class TunnelClient {
     if (this.ws) {
       this.ws.close(1000, 'Client shutting down');
       this.ws = null;
+    }
+    if (this.requestCount > 0) {
+      console.log(`\n  ${dim(`${this.requestCount} request${this.requestCount !== 1 ? 's' : ''} forwarded`)}`);
     }
   }
 }
