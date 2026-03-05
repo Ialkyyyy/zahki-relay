@@ -6,6 +6,7 @@ export interface Tunnel {
   apiKey?: string;
   createdAt: string;
   connected: boolean;
+  requestCount: number;
 }
 
 export interface CapturedRequest {

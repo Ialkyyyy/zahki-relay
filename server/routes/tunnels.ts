@@ -43,7 +43,11 @@ tunnelsRouter.post('/', (req, res) => {
 // List all tunnels
 tunnelsRouter.get('/', (_req, res) => {
   const db = getDb();
-  const result = db.exec(`SELECT id, subdomain, created_at FROM tunnels ORDER BY created_at DESC`);
+  const result = db.exec(`
+    SELECT t.id, t.subdomain, t.created_at,
+      (SELECT COUNT(*) FROM requests r WHERE r.tunnel_id = t.id) as request_count
+    FROM tunnels t ORDER BY t.created_at DESC
+  `);
 
   if (result.length === 0) {
     res.json([]);
@@ -55,6 +59,7 @@ tunnelsRouter.get('/', (_req, res) => {
     subdomain: row[1],
     createdAt: row[2],
     connected: tunnelManager.isConnected(row[1] as string),
+    requestCount: row[3],
   }));
 
   res.json(tunnels);

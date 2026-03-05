@@ -142,14 +142,17 @@ export default function Dashboard() {
                   {tunnel.subdomain}
                 </button>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  {tunnel.connected ? 'Connected' : 'Disconnected'} -- Created {new Date(tunnel.createdAt + 'Z').toLocaleDateString()}
+                  {tunnel.connected ? 'Connected' : 'Disconnected'} · {tunnel.requestCount} request{tunnel.requestCount !== 1 ? 's' : ''} · {new Date(tunnel.createdAt + 'Z').toLocaleDateString()}
+                </p>
+                <p className="text-xs text-zinc-600 font-mono mt-0.5 truncate">
+                  {window.location.origin}/t/{tunnel.subdomain}
                 </p>
               </div>
               <button
                 onClick={() => navigate(`/tunnel/${tunnel.id}`)}
-                className="px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 transition-colors"
+                className="px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 transition-colors shrink-0"
               >
-                View Requests
+                Requests
               </button>
               <button
                 onClick={() => handleDelete(tunnel.id)}
