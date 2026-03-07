@@ -20,7 +20,8 @@
     "build": "npm run build:client && npm run build:server && npm run build:cli",
     "start": "node dist/server/index.js",
     "preview": "npm run build && npm start",
-    "cli": "tsx cli/index.ts"
+    "cli": "tsx cli/index.ts",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "tunnel",
