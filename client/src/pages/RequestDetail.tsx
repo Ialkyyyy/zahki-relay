@@ -11,6 +11,18 @@ function formatBody(body: string | null): string {
   }
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function parseQueryParams(path: string): [string, URLSearchParams | null] {
+  const idx = path.indexOf('?');
+  if (idx === -1) return [path, null];
+  return [path.substring(0, idx), new URLSearchParams(path.substring(idx))];
+}
+
 function toCurl(req: CapturedRequest): string {
   const parts = [`curl -X ${req.method}`];
   for (const [key, value] of Object.entries(req.headers)) {
@@ -138,7 +150,7 @@ export default function RequestDetail() {
             <span className="px-2 py-1 rounded text-sm font-mono font-bold bg-cyan-500/20 text-cyan-400">
               {request.method}
             </span>
-            <span className="text-sm font-mono text-zinc-300">{request.path}</span>
+            <span className="text-sm font-mono text-zinc-300 break-all">{parseQueryParams(request.path)[0]}</span>
             <div className="flex-1" />
             <span className={`font-mono font-bold text-lg ${statusColor}`}>
               {request.statusCode ?? '---'}
@@ -147,9 +159,27 @@ export default function RequestDetail() {
               <span className="text-sm text-zinc-500 font-mono">{request.responseTime}ms</span>
             )}
           </div>
-          <p className="text-xs text-zinc-600 font-mono">
-            {new Date(request.createdAt + 'Z').toLocaleString()}
-          </p>
+          <div className="flex items-center gap-3 text-xs text-zinc-600 font-mono">
+            <span>{new Date(request.createdAt + 'Z').toLocaleString()}</span>
+            {request.body && <span>· {formatBytes(request.body.length)}</span>}
+          </div>
+          {(() => {
+            const [, params] = parseQueryParams(request.path);
+            if (!params || [...params.entries()].length === 0) return null;
+            return (
+              <div className="mt-3 pt-3 border-t border-zinc-800/50">
+                <h4 className="text-xs font-medium text-zinc-500 mb-2">Query Parameters</h4>
+                <div className="space-y-1">
+                  {[...params.entries()].map(([key, value], i) => (
+                    <div key={i} className="flex gap-2 text-sm font-mono">
+                      <span className="text-cyan-400/70 shrink-0">{key}:</span>
+                      <span className="text-zinc-400 break-all">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Request Headers */}
