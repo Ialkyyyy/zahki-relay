@@ -47,7 +47,7 @@ requestsRouter.get('/detail/:id', (req, res) => {
   const { id } = req.params;
 
   const result = db.exec(
-    `SELECT id, tunnel_id, method, path, headers, body, status_code, response_time, created_at FROM requests WHERE id = ?`,
+    `SELECT id, tunnel_id, method, path, headers, body, status_code, response_headers, response_body, response_time, created_at FROM requests WHERE id = ?`,
     [id]
   );
 
@@ -65,8 +65,10 @@ requestsRouter.get('/detail/:id', (req, res) => {
     headers: JSON.parse((row[4] as string) || '{}'),
     body: row[5],
     statusCode: row[6],
-    responseTime: row[7],
-    createdAt: row[8],
+    responseHeaders: JSON.parse((row[7] as string) || '{}'),
+    responseBody: row[8],
+    responseTime: row[9],
+    createdAt: row[10],
   });
 });
 

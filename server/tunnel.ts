@@ -109,15 +109,15 @@ export class TunnelManager {
     }).then((response) => {
       const responseTime = Date.now() - startTime;
 
-      // Log request to database
+      // Log request + response to database
       const db = getDb();
       const tunnel = db.exec(`SELECT id FROM tunnels WHERE subdomain = ?`, [subdomain]);
       if (tunnel.length > 0 && tunnel[0].values.length > 0) {
         const tunnelId = tunnel[0].values[0][0] as string;
         const reqId = nanoid();
         db.run(
-          `INSERT INTO requests (id, tunnel_id, method, path, headers, body, status_code, response_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [reqId, tunnelId, method, reqPath, JSON.stringify(headers), body || null, response.status, responseTime]
+          `INSERT INTO requests (id, tunnel_id, method, path, headers, body, status_code, response_headers, response_body, response_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [reqId, tunnelId, method, reqPath, JSON.stringify(headers), body || null, response.status, JSON.stringify(response.headers), response.body || null, responseTime]
         );
         saveDb();
       }

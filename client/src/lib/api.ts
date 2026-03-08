@@ -17,6 +17,8 @@ export interface CapturedRequest {
   headers: Record<string, string>;
   body: string | null;
   statusCode: number | null;
+  responseHeaders: Record<string, string>;
+  responseBody: string | null;
   responseTime: number | null;
   createdAt: string;
 }

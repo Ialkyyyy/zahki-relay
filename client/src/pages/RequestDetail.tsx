@@ -168,6 +168,27 @@ export default function RequestDetail() {
           </div>
         )}
 
+        {/* Original Response */}
+        {(request.responseHeaders && Object.keys(request.responseHeaders).length > 0) || request.responseBody ? (
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-medium text-zinc-400">Response</h3>
+            {request.responseHeaders && Object.keys(request.responseHeaders).length > 0 && (
+              <div>
+                <h4 className="text-xs font-medium text-zinc-500 mb-2">Response Headers</h4>
+                <HeaderTable headers={request.responseHeaders} />
+              </div>
+            )}
+            {request.responseBody && (
+              <div>
+                <h4 className="text-xs font-medium text-zinc-500 mb-2">Response Body</h4>
+                <pre className="bg-black/50 rounded-lg p-4 text-sm text-zinc-300 font-mono overflow-x-auto whitespace-pre-wrap break-all">
+                  {formatBody(request.responseBody)}
+                </pre>
+              </div>
+            )}
+          </div>
+        ) : null}
+
         {/* Replay Result */}
         {replayError && (
           <div className="bg-red-950/30 border border-red-800/50 rounded-xl p-5">

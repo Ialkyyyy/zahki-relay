@@ -39,11 +39,21 @@ export async function initDb() {
       headers TEXT NOT NULL DEFAULT '{}',
       body TEXT,
       status_code INTEGER,
+      response_headers TEXT DEFAULT '{}',
+      response_body TEXT,
       response_time INTEGER,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (tunnel_id) REFERENCES tunnels(id)
     )
   `);
+
+  // Migrate: add response columns if missing
+  try {
+    db.run(`ALTER TABLE requests ADD COLUMN response_headers TEXT DEFAULT '{}'`);
+  } catch { /* column already exists */ }
+  try {
+    db.run(`ALTER TABLE requests ADD COLUMN response_body TEXT`);
+  } catch { /* column already exists */ }
 
   saveDb();
 }

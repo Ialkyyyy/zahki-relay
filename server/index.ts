@@ -21,26 +21,22 @@ app.use(express.text({ limit: '5mb', type: '*/*' }));
 app.use('/api/tunnels', tunnelsRouter);
 app.use('/api/requests', requestsRouter);
 
-// Path-based tunnel routing: /t/:subdomain/*
-app.all('/t/:subdomain/*', async (req, res) => {
-  const { subdomain } = req.params;
-  // Extract the path after /t/subdomain
-  const tunnelPath = '/' + ((req.params as any)[0] || '');
+// Shared tunnel handler
+async function handleTunnelRequest(req: import('express').Request, res: import('express').Response, tunnelPath: string) {
+  const subdomain = req.params.subdomain as string;
 
   if (!tunnelManager.isConnected(subdomain)) {
     res.status(502).json({ error: 'Tunnel not connected', subdomain });
     return;
   }
 
-  // Collect headers (exclude host and some hop-by-hop headers)
   const forwardHeaders: Record<string, string> = {};
   for (const [key, value] of Object.entries(req.headers)) {
-    if (typeof value === 'string' && !['host', 'connection', 'upgrade'].includes(key)) {
+    if (typeof value === 'string' && !['host', 'connection', 'upgrade'].includes(key.toLowerCase())) {
       forwardHeaders[key] = value;
     }
   }
 
-  // Get request body as string
   let body = '';
   if (typeof req.body === 'string') {
     body = req.body;
@@ -49,61 +45,26 @@ app.all('/t/:subdomain/*', async (req, res) => {
   }
 
   try {
-    const response = await tunnelManager.forwardRequest(
-      subdomain,
-      req.method,
-      tunnelPath,
-      forwardHeaders,
-      body
-    );
-
-    // Set response headers
+    const response = await tunnelManager.forwardRequest(subdomain, req.method, tunnelPath, forwardHeaders, body);
     for (const [key, value] of Object.entries(response.headers)) {
       if (!['transfer-encoding', 'connection'].includes(key.toLowerCase())) {
         res.setHeader(key, value);
       }
     }
-
     res.status(response.status).send(response.body);
   } catch (err) {
     res.status(504).json({ error: err instanceof Error ? err.message : 'Tunnel request failed' });
   }
+}
+
+// Path-based tunnel routing
+app.all('/t/:subdomain/*', (req, res) => {
+  const tunnelPath = '/' + ((req.params as any)[0] || '');
+  handleTunnelRequest(req, res, tunnelPath);
 });
 
-// Also handle /t/:subdomain without trailing path
-app.all('/t/:subdomain', async (req, res) => {
-  const { subdomain } = req.params;
-
-  if (!tunnelManager.isConnected(subdomain)) {
-    res.status(502).json({ error: 'Tunnel not connected', subdomain });
-    return;
-  }
-
-  const forwardHeaders: Record<string, string> = {};
-  for (const [key, value] of Object.entries(req.headers)) {
-    if (typeof value === 'string' && !['host', 'connection', 'upgrade'].includes(key)) {
-      forwardHeaders[key] = value;
-    }
-  }
-
-  let body = '';
-  if (typeof req.body === 'string') {
-    body = req.body;
-  } else if (req.body && typeof req.body === 'object') {
-    body = JSON.stringify(req.body);
-  }
-
-  try {
-    const response = await tunnelManager.forwardRequest(subdomain, req.method, '/', forwardHeaders, body);
-    for (const [key, value] of Object.entries(response.headers)) {
-      if (!['transfer-encoding', 'connection'].includes(key.toLowerCase())) {
-        res.setHeader(key, value);
-      }
-    }
-    res.status(response.status).send(response.body);
-  } catch (err) {
-    res.status(504).json({ error: err instanceof Error ? err.message : 'Tunnel request failed' });
-  }
+app.all('/t/:subdomain', (req, res) => {
+  handleTunnelRequest(req, res, '/');
 });
 
 // Serve static client in production
