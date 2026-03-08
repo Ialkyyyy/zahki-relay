@@ -1,0 +1,49 @@
+{
+  "name": "zahki-relay",
+  "version": "1.0.0",
+  "description": "Webhook relay and localhost tunnel tool. Expose local servers to the internet with live request inspection.",
+  "type": "module",
+  "bin": {
+    "zahki-relay": "dist/cli/index.js"
+  },
+  "scripts": {
+    "dev:server": "tsx watch server/index.ts",
+    "dev:client": "vite client",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:client": "vite build client",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build:cli": "tsc -p tsconfig.cli.json",
+    "build": "npm run build:client && npm run build:server && npm run build:cli",
+    "start": "node dist/server/index.js",
+    "preview": "npm run build && npm start",
+    "cli": "tsx cli/index.ts"
+  },
+  "dependencies": {
+    "sql.js": "^1.11.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "nanoid": "^5.0.9",
+    "ws": "^8.18.0",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/ws": "^8.5.13",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
+    "postcss": "^8.5.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.0",
+    "tailwindcss": "^3.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.1.0"
+  },
+  "license": "MIT"
+}
