@@ -149,7 +149,7 @@ export default function Dashboard() {
                   {tunnel.connected ? 'Connected' : 'Disconnected'} · {tunnel.requestCount} request{tunnel.requestCount !== 1 ? 's' : ''} · {new Date(tunnel.createdAt + 'Z').toLocaleDateString()}
                 </p>
                 <p className="text-xs text-zinc-600 font-mono mt-0.5 truncate">
-                  {tunnel.subdomain}.{window.location.hostname}
+                  t-{tunnel.subdomain}.{window.location.hostname.split('.').slice(1).join('.')}
                 </p>
               </div>
               <button

@@ -17,17 +17,19 @@ app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.text({ limit: '5mb', type: '*/*' }));
 
-// Detect tunnel subdomain from Host header (e.g. myapp.relay.alkhabaz.dev → myapp)
-const RELAY_DOMAIN = process.env.RELAY_DOMAIN || 'relay.alkhabaz.dev';
+// Detect tunnel subdomain from Host header (e.g. t-myapp.alkhabaz.dev → myapp)
+const BASE_DOMAIN = process.env.BASE_DOMAIN || 'alkhabaz.dev';
+const TUNNEL_PREFIX = 't-';
 
 function getTunnelSubdomain(host: string | undefined): string | null {
   if (!host) return null;
-  // Strip port if present
   const hostname = host.split(':')[0];
-  // Check if it's a subdomain of the relay domain (e.g. myapp.relay.alkhabaz.dev)
-  if (hostname.endsWith(`.${RELAY_DOMAIN}`)) {
-    const sub = hostname.slice(0, -(RELAY_DOMAIN.length + 1));
-    if (sub && !sub.includes('.')) return sub;
+  // Check for t-<subdomain>.alkhabaz.dev pattern
+  if (hostname.endsWith(`.${BASE_DOMAIN}`)) {
+    const sub = hostname.slice(0, -(BASE_DOMAIN.length + 1));
+    if (sub.startsWith(TUNNEL_PREFIX) && !sub.includes('.')) {
+      return sub.slice(TUNNEL_PREFIX.length);
+    }
   }
   return null;
 }
