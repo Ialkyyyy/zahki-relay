@@ -51,7 +51,20 @@ async function handleTunnelRequest(req: import('express').Request, res: import('
         res.setHeader(key, value);
       }
     }
-    res.status(response.status).send(response.body);
+
+    // Rewrite absolute paths in HTML responses so assets route through the tunnel
+    const contentType = (response.headers['content-type'] || '').toLowerCase();
+    if (contentType.includes('text/html')) {
+      const base = `/t/${subdomain}/`;
+      let html = response.body;
+      // Rewrite src="/...", href="/...", action="/..." (but not protocol-relative //...)
+      html = html.replace(/((?:src|href|action)\s*=\s*["'])\/(?!\/)/g, `$1${base}`);
+      // Rewrite module imports like from "/..."
+      html = html.replace(/(from\s+["'])\/(?!\/)/g, `$1${base}`);
+      res.status(response.status).send(html);
+    } else {
+      res.status(response.status).send(response.body);
+    }
   } catch (err) {
     res.status(504).json({ error: err instanceof Error ? err.message : 'Tunnel request failed' });
   }
