@@ -61,12 +61,15 @@ export default function Dashboard() {
       {/* Create tunnel form */}
       <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 mb-6">
         <h2 className="text-sm font-medium text-zinc-400 mb-3">Create New Tunnel</h2>
+        <p className="text-xs text-zinc-500 mb-3">
+          Create a tunnel endpoint, then connect your local service using the CLI.
+        </p>
         <div className="flex gap-3">
           <input
             type="text"
             value={subdomain}
-            onChange={(e) => setSubdomain(e.target.value.toLowerCase())}
-            placeholder="custom-subdomain (optional)"
+            onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+            placeholder="my-app (optional — auto-generated if blank)"
             className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 font-mono"
           />
           <button
@@ -89,14 +92,15 @@ export default function Dashboard() {
             <div>
               <h3 className="text-sm font-medium text-cyan-400 mb-1">Tunnel Created</h3>
               <p className="text-xs text-zinc-400 mb-3">
-                Save this API key -- it won't be shown again. Use it to connect the CLI client.
+                Save this API key -- it won't be shown again. Use it to connect your local service.
               </p>
               <code className="block bg-black/50 rounded-lg px-3 py-2 text-sm text-cyan-300 font-mono break-all">
                 {newTunnelKey}
               </code>
-              <p className="text-xs text-zinc-500 mt-3 font-mono">
-                npx zahki-relay start 3000 --server {window.location.origin}
-              </p>
+              <p className="text-xs text-zinc-500 mt-3 mb-1">Connect your local port with the CLI:</p>
+              <code className="block bg-black/50 rounded-lg px-3 py-2 text-xs text-zinc-400 font-mono">
+                npx zahki-relay start &lt;PORT&gt; --server {window.location.origin} --key &lt;API_KEY&gt;
+              </code>
             </div>
             <button
               onClick={() => setNewTunnelKey(null)}
