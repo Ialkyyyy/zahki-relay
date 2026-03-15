@@ -17,12 +17,66 @@ app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.text({ limit: '5mb', type: '*/*' }));
 
-// API routes
+// Detect tunnel subdomain from Host header (e.g. myapp.relay.alkhabaz.dev → myapp)
+const RELAY_DOMAIN = process.env.RELAY_DOMAIN || 'relay.alkhabaz.dev';
+
+function getTunnelSubdomain(host: string | undefined): string | null {
+  if (!host) return null;
+  // Strip port if present
+  const hostname = host.split(':')[0];
+  // Check if it's a subdomain of the relay domain (e.g. myapp.relay.alkhabaz.dev)
+  if (hostname.endsWith(`.${RELAY_DOMAIN}`)) {
+    const sub = hostname.slice(0, -(RELAY_DOMAIN.length + 1));
+    if (sub && !sub.includes('.')) return sub;
+  }
+  return null;
+}
+
+// Subdomain-based tunnel routing — runs before everything else
+app.use((req, res, next) => {
+  const tunnelSub = getTunnelSubdomain(req.headers.host);
+  if (!tunnelSub) return next();
+
+  // This request is for a tunnel subdomain — forward it entirely
+  if (!tunnelManager.isConnected(tunnelSub)) {
+    res.status(502).json({ error: 'Tunnel not connected', subdomain: tunnelSub });
+    return;
+  }
+
+  const forwardHeaders: Record<string, string> = {};
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (typeof value === 'string' && !['host', 'connection', 'upgrade'].includes(key.toLowerCase())) {
+      forwardHeaders[key] = value;
+    }
+  }
+
+  let body = '';
+  if (typeof req.body === 'string') {
+    body = req.body;
+  } else if (req.body && typeof req.body === 'object') {
+    body = JSON.stringify(req.body);
+  }
+
+  tunnelManager.forwardRequest(tunnelSub, req.method, req.originalUrl, forwardHeaders, body)
+    .then((response) => {
+      for (const [key, value] of Object.entries(response.headers)) {
+        if (!['transfer-encoding', 'connection'].includes(key.toLowerCase())) {
+          res.setHeader(key, value);
+        }
+      }
+      res.status(response.status).send(response.body);
+    })
+    .catch((err) => {
+      res.status(504).json({ error: err instanceof Error ? err.message : 'Tunnel request failed' });
+    });
+});
+
+// API routes (only reached for relay.alkhabaz.dev, not tunnel subdomains)
 app.use('/api/tunnels', tunnelsRouter);
 app.use('/api/requests', requestsRouter);
 
-// Shared tunnel handler
-async function handleTunnelRequest(req: import('express').Request, res: import('express').Response, tunnelPath: string) {
+// Path-based tunnel routing (legacy fallback)
+function handlePathTunnel(req: import('express').Request, res: import('express').Response, tunnelPath: string) {
   const subdomain = req.params.subdomain as string;
 
   if (!tunnelManager.isConnected(subdomain)) {
@@ -44,40 +98,27 @@ async function handleTunnelRequest(req: import('express').Request, res: import('
     body = JSON.stringify(req.body);
   }
 
-  try {
-    const response = await tunnelManager.forwardRequest(subdomain, req.method, tunnelPath, forwardHeaders, body);
-    for (const [key, value] of Object.entries(response.headers)) {
-      if (!['transfer-encoding', 'connection'].includes(key.toLowerCase())) {
-        res.setHeader(key, value);
+  tunnelManager.forwardRequest(subdomain, req.method, tunnelPath, forwardHeaders, body)
+    .then((response) => {
+      for (const [key, value] of Object.entries(response.headers)) {
+        if (!['transfer-encoding', 'connection'].includes(key.toLowerCase())) {
+          res.setHeader(key, value);
+        }
       }
-    }
-
-    // Rewrite absolute paths in HTML responses so assets route through the tunnel
-    const contentType = (response.headers['content-type'] || '').toLowerCase();
-    if (contentType.includes('text/html')) {
-      const base = `/t/${subdomain}/`;
-      let html = response.body;
-      // Rewrite src="/...", href="/...", action="/..." (but not protocol-relative //...)
-      html = html.replace(/((?:src|href|action)\s*=\s*["'])\/(?!\/)/g, `$1${base}`);
-      // Rewrite module imports like from "/..."
-      html = html.replace(/(from\s+["'])\/(?!\/)/g, `$1${base}`);
-      res.status(response.status).send(html);
-    } else {
       res.status(response.status).send(response.body);
-    }
-  } catch (err) {
-    res.status(504).json({ error: err instanceof Error ? err.message : 'Tunnel request failed' });
-  }
+    })
+    .catch((err) => {
+      res.status(504).json({ error: err instanceof Error ? err.message : 'Tunnel request failed' });
+    });
 }
 
-// Path-based tunnel routing
 app.all('/t/:subdomain/*', (req, res) => {
   const tunnelPath = '/' + ((req.params as any)[0] || '');
-  handleTunnelRequest(req, res, tunnelPath);
+  handlePathTunnel(req, res, tunnelPath);
 });
 
 app.all('/t/:subdomain', (req, res) => {
-  handleTunnelRequest(req, res, '/');
+  handlePathTunnel(req, res, '/');
 });
 
 // Serve static client in production

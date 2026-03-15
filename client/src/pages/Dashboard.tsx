@@ -99,7 +99,7 @@ export default function Dashboard() {
               </code>
               <p className="text-xs text-zinc-500 mt-3 mb-1">Connect your local port with the CLI:</p>
               <code className="block bg-black/50 rounded-lg px-3 py-2 text-xs text-zinc-400 font-mono">
-                npx zahki-relay start &lt;PORT&gt; --server {window.location.origin} --key &lt;API_KEY&gt;
+                npx zahki-relay start &lt;PORT&gt; --server {window.location.origin}
               </code>
             </div>
             <button
@@ -149,7 +149,7 @@ export default function Dashboard() {
                   {tunnel.connected ? 'Connected' : 'Disconnected'} · {tunnel.requestCount} request{tunnel.requestCount !== 1 ? 's' : ''} · {new Date(tunnel.createdAt + 'Z').toLocaleDateString()}
                 </p>
                 <p className="text-xs text-zinc-600 font-mono mt-0.5 truncate">
-                  {window.location.origin}/t/{tunnel.subdomain}
+                  {tunnel.subdomain}.{window.location.hostname}
                 </p>
               </div>
               <button

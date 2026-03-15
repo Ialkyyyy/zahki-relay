@@ -79,9 +79,11 @@ export class TunnelClient {
 
         if (msg.type === 'auth_ok') {
           this.connectedAt = Date.now();
-          const publicUrl = `${this.options.serverUrl}/t/${msg.subdomain}`;
+          // Build subdomain-based URL (e.g. https://myapp.relay.alkhabaz.dev)
+          const serverUrl = new URL(this.options.serverUrl);
+          const subdomainUrl = `${serverUrl.protocol}//${msg.subdomain}.${serverUrl.host}`;
           console.log(`  ${green('●')} Tunnel active\n`);
-          console.log(`  ${dim('Public URL:')}  ${cyan(publicUrl)}`);
+          console.log(`  ${dim('Public URL:')}  ${cyan(subdomainUrl)}`);
           console.log(`  ${dim('Forwarding:')}  http://localhost:${this.options.port}`);
           console.log(`  ${dim('Dashboard:')}   ${this.options.serverUrl}\n`);
           console.log(`  ${dim('Method'.padEnd(8))} ${dim('Path'.padEnd(40))} ${dim('Status'.padEnd(8))} ${dim('Time')}`);
